@@ -1,0 +1,78 @@
+name: Build mosdns binary for armv7-softfloat
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
+  # Triggers the workflow every hour
+  schedule:
+    - cron: '0 * * * *'
+  # Keep manual trigger and push events
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version_available: ${{ steps.check_version.outputs.new_version_available }}
+      latest_tag: ${{ steps.check_version.outputs.latest_tag }}
+
+    steps:
+    - name: Check latest release
+      id: check_version
+      run: |
+        # Get the latest release tag from AdGuard Home repository
+        latest_tag=$(curl -s https://api.github.com/repos/IrineSistiana/mosdns/releases/latest | jq -r '.tag_name')
+        echo "Latest AdGuard Home version: $latest_tag"
+        echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+        
+        # Get the latest release in current repository
+        current_tag=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
+        echo "Current built version: $current_tag"
+        echo "current_tag=${current_tag}" >> $GITHUB_OUTPUT
+        
+        if [ "$latest_tag" != "$current_tag" ]; then
+          echo "new_version_available=true" >> $GITHUB_OUTPUT
+          echo "New version detected! Will trigger build job."
+        else
+          echo "new_version_available=false" >> $GITHUB_OUTPUT
+          echo "No new version available. Skipping build."
+        fi
+
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.23'
+          check-latest: true
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build biniary
+        run: |
+          git clone https://github.com/IrineSistiana/mosdns.git
+          cd mosdns
+          git checkout ${{ needs.check-version.outputs.latest_tag }}
+          env GOOS='linux' GOARCH='arm' GOARM='7,softfloat' CGO_ENABLED='0' python ./release.py
+          ls -al
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-version.outputs.latest_tag }}
+          body: "mosdns arm 7,softfloat ${{ needs.check-version.outputs.latest_tag }}"
+          files: './mosdns/release/mosdns*.zip'

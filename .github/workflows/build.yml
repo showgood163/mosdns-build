@@ -26,9 +26,9 @@ jobs:
     - name: Check latest release
       id: check_version
       run: |
-        # Get the latest release tag from AdGuard Home repository
+        # Get the latest release tag from mosdns repository
         latest_tag=$(curl -s https://api.github.com/repos/IrineSistiana/mosdns/releases/latest | jq -r '.tag_name')
-        echo "Latest AdGuard Home version: $latest_tag"
+        echo "Latest mosdns version: $latest_tag"
         echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
         
         # Get the latest release in current repository
@@ -45,7 +45,10 @@ jobs:
         fi
 
   build-release:
+    needs: check-version
+    if: needs.check-version.outputs.new_version_available == 'true'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -69,7 +69,7 @@ jobs:
           git clone https://github.com/IrineSistiana/mosdns.git
           cd mosdns
           git checkout ${{ needs.check-version.outputs.latest_tag }}
-          env GOOS='linux' GOARCH='arm' GOARM='7,softfloat' CGO_ENABLED='0' python ./release.py
+          GOOS='linux' GOARCH='arm' GOARM='7,softfloat' CGO_ENABLED='0' go build -ldflags "-s -w -X main.version=${{ needs.check-version.outputs.latest_tag }}" -trimpath -o mosdns .
           ls -al
 
       - name: Release
@@ -77,4 +77,4 @@ jobs:
         with:
           tag_name: ${{ needs.check-version.outputs.latest_tag }}
           body: "mosdns arm 7,softfloat ${{ needs.check-version.outputs.latest_tag }}"
-          files: './mosdns/release/mosdns*.zip'
+          files: './mosdns/mosdns'
